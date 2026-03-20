@@ -11,6 +11,12 @@ export interface Submission extends SubmissionInput {
   timestamp: ISO8601Timestamp;
 }
 
+export interface DispatchContent {
+  subject: string;
+  preview: string;
+  markdown: string;
+}
+
 export interface DispatchResult {
   weekId: WeekId;
   archivedCount: number;

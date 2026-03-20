@@ -4,7 +4,7 @@ import { Redis } from "@upstash/redis";
 
 import { getEnv } from "@/lib/env";
 
-export type RedisClient = Pick<Redis, "rpush" | "lrange" | "ltrim">;
+export type RedisClient = Pick<Redis, "rpush" | "lrange" | "ltrim" | "set" | "del">;
 
 let cachedRedisClient: RedisClient | null = null;
 

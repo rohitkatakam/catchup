@@ -1,6 +1,14 @@
-import { getCurrentWeekSubmissionsKey, getWeekArchiveKey, getWeekId } from "@/lib/keys";
+import {
+  getCurrentWeekSubmissionsKey,
+  getWeekArchiveKey,
+  getWeekId,
+  getWeekSendLockKey,
+} from "@/lib/keys";
 import { getRedisClient } from "@/lib/redis";
-import type { Submission, SubmissionInput } from "@/lib/types";
+import type { Submission, SubmissionInput, WeekId } from "@/lib/types";
+
+const WEEK_DISPATCH_IN_FLIGHT_TTL_SECONDS = 60 * 60 * 24;
+const WEEK_DISPATCH_COMPLETE_TTL_SECONDS = 60 * 60 * 24 * 8;
 
 interface ParsedSubmission {
   submission: Submission;
@@ -82,6 +90,39 @@ export async function listCurrentWeekSubmissions(now: Date = new Date()): Promis
       return left.originalIndex - right.originalIndex;
     })
     .map((parsed) => parsed.submission);
+}
+
+export async function acquireWeekDispatchLock(
+  weekId: WeekId,
+  now: Date = new Date(),
+): Promise<boolean> {
+  const redis = getRedisClient();
+  const lockKey = getWeekSendLockKey(weekId);
+  const result = await redis.set(lockKey, `in_flight:${now.toISOString()}`, {
+    nx: true,
+    ex: WEEK_DISPATCH_IN_FLIGHT_TTL_SECONDS,
+  });
+
+  return result === "OK";
+}
+
+export async function markWeekDispatchComplete(
+  weekId: WeekId,
+  now: Date = new Date(),
+): Promise<void> {
+  const redis = getRedisClient();
+  const lockKey = getWeekSendLockKey(weekId);
+
+  await redis.set(lockKey, `completed:${now.toISOString()}`, {
+    ex: WEEK_DISPATCH_COMPLETE_TTL_SECONDS,
+  });
+}
+
+export async function releaseWeekDispatchLock(weekId: WeekId): Promise<void> {
+  const redis = getRedisClient();
+  const lockKey = getWeekSendLockKey(weekId);
+
+  await redis.del(lockKey);
 }
 
 export interface ArchiveResult {
