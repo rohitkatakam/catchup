@@ -1,64 +1,108 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
 
 export default function Home() {
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setStatus("loading");
+    setErrorMessage("");
+
+    const formData = new FormData(e.currentTarget);
+    const author = formData.get("author")?.toString();
+    const content = formData.get("content")?.toString();
+
+    try {
+      const res = await fetch("/api/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ author, content }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setStatus("error");
+        setErrorMessage(data?.error?.message || "Something went wrong.");
+        return;
+      }
+
+      setStatus("success");
+    } catch {
+      setStatus("error");
+      setErrorMessage("Something went wrong.");
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="flex flex-col flex-1 items-center justify-center min-h-screen bg-zinc-950 font-sans p-4">
+      <main className="w-full max-w-lg p-8 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl">
+        <h1 className="text-2xl font-semibold mb-6 text-zinc-100">Weekly Dispatch</h1>
+        
+        {status === "success" ? (
+          <div role="status" aria-live="polite" className="p-4 bg-green-950/50 border border-green-900 rounded-lg text-green-400">
+            <h2 className="font-medium mb-1">Success!</h2>
+            <p className="text-sm">Your update has been submitted for this week.</p>
+            <button 
+              onClick={() => setStatus("idle")}
+              className="mt-4 text-sm font-medium underline"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Submit another
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5" aria-busy={status === "loading"}>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="author" className="text-sm font-medium text-zinc-300">
+                Author
+              </label>
+              <select 
+                id="author"
+                name="author"
+                required
+                defaultValue=""
+                className="p-3 bg-zinc-950 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-600 focus:border-transparent appearance-none"
+              >
+                <option value="" disabled>Select author...</option>
+                <option value="Alice">Alice</option>
+                <option value="Bob">Bob</option>
+                <option value="Charlie">Charlie</option>
+                <option value="Dave">Dave</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="content" className="text-sm font-medium text-zinc-300">
+                Your Update
+              </label>
+              <textarea
+                id="content"
+                name="content"
+                required
+                rows={5}
+                placeholder="What did you do this week?"
+                className="p-3 bg-zinc-950 border border-zinc-700 rounded-lg text-zinc-100 resize-y focus:outline-none focus:ring-2 focus:ring-zinc-600 focus:border-transparent placeholder:text-zinc-600"
+              />
+            </div>
+
+            {status === "error" && (
+              <div role="alert" className="text-sm text-red-400 font-medium">
+                {errorMessage}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={status === "loading"}
+              className="mt-2 w-full p-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-950 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+              {status === "loading" ? "Submitting..." : "Submit"}
+            </button>
+          </form>
+        )}
       </main>
     </div>
   );

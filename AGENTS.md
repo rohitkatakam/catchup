@@ -8,7 +8,7 @@ The system relies on Upstash Redis (via Vercel) for temporary state, Respan for 
 ## Tech Stack & Dependencies
 - **Framework:** Next.js 15 (App Router, TypeScript, Tailwind CSS, Lucide React)
 - **Database:** `@upstash/redis` (Crucial: Do not use `@vercel/kv` as it is deprecated)
-- **AI Gateway & Tracing:** `ai`, `@ai-sdk/openai`, `@respan/exporter-vercel`, `@vercel/otel`
+- **AI Gateway & Tracing:** `ai` (via Respan), `@respan/exporter-vercel`, `@vercel/otel`
 - **Email:** `resend`
 
 ## System Workflows

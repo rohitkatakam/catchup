@@ -10,7 +10,6 @@ const completeEnv = {
   RESEND_API_KEY: "re_test_key",
   DISPATCH_FROM_EMAIL: "dispatch@example.com",
   DISPATCH_RECIPIENTS: "friend1@example.com,friend2@example.com",
-  OPENAI_API_KEY: "sk-test",
   RESPAN_API_KEY: "respan-test-key",
   RESPAN_PROJECT_ID: "proj_test",
   CRON_SECRET: "super-secret",

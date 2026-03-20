@@ -22,7 +22,6 @@ const envSchema = z.object({
   RESEND_API_KEY: nonEmptyString,
   DISPATCH_FROM_EMAIL: nonEmptyString.email(),
   DISPATCH_RECIPIENTS: recipientListSchema,
-  OPENAI_API_KEY: nonEmptyString,
   RESPAN_API_KEY: nonEmptyString,
   RESPAN_PROJECT_ID: nonEmptyString,
   CRON_SECRET: nonEmptyString,
