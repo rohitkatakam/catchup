@@ -9,7 +9,7 @@ const completeEnv = {
   UPSTASH_REDIS_REST_TOKEN: "test-token",
   RESEND_API_KEY: "re_test_key",
   DISPATCH_FROM_EMAIL: "dispatch@example.com",
-  DISPATCH_RECIPIENTS: "friend1@example.com,friend2@example.com",
+  DISPATCH_AUDIENCE_ID: "audience_123",
   RESPAN_API_KEY: "respan-test-key",
   RESPAN_PROJECT_ID: "proj_test",
   CRON_SECRET: "super-secret",
@@ -45,16 +45,16 @@ describe("parseEnv", () => {
     expect(() => parseEnv(withInvalidUrl)).toThrowError(/UPSTASH_REDIS_REST_URL/i);
   });
 
-  it("throws when recipient list is not comma-separated emails", () => {
-    const withInvalidRecipients = {
+  it("throws when DISPATCH_AUDIENCE_ID is missing or empty", () => {
+    const withoutAudienceId = {
       ...completeEnv,
-      DISPATCH_RECIPIENTS: "friend1@example.com, not-an-email",
+      DISPATCH_AUDIENCE_ID: "   ",
     };
 
-    expect(() => parseEnv(withInvalidRecipients)).toThrowError(
+    expect(() => parseEnv(withoutAudienceId)).toThrowError(
       /Missing or invalid environment variables/i,
     );
-    expect(() => parseEnv(withInvalidRecipients)).toThrowError(/DISPATCH_RECIPIENTS/i);
+    expect(() => parseEnv(withoutAudienceId)).toThrowError(/DISPATCH_AUDIENCE_ID/i);
   });
 
   it("throws when DISPATCH_FROM_EMAIL is present but invalid", () => {

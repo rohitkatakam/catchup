@@ -3,25 +3,12 @@ import { z } from "zod";
 
 const nonEmptyString = z.string().trim().min(1);
 
-const emailSchema = z.string().email();
-
-const recipientListSchema = nonEmptyString.refine(
-  (value) =>
-    value
-      .split(",")
-      .map((recipient) => recipient.trim())
-      .every((recipient) => recipient.length > 0 && emailSchema.safeParse(recipient).success),
-  {
-    message: "Expected comma-separated email addresses",
-  },
-);
-
 const envSchema = z.object({
   UPSTASH_REDIS_REST_URL: nonEmptyString.url(),
   UPSTASH_REDIS_REST_TOKEN: nonEmptyString,
   RESEND_API_KEY: nonEmptyString,
   DISPATCH_FROM_EMAIL: nonEmptyString.email(),
-  DISPATCH_RECIPIENTS: recipientListSchema,
+  DISPATCH_AUDIENCE_ID: nonEmptyString,
   RESPAN_API_KEY: nonEmptyString,
   RESPAN_PROJECT_ID: nonEmptyString,
   CRON_SECRET: nonEmptyString,

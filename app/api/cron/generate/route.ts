@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 
 import { generateDispatchContent } from "@/lib/dispatch";
+import { sendWeeklyDispatch } from "@/lib/email";
 import { getEnv } from "@/lib/env";
 import { getWeekId } from "@/lib/keys";
 import {
   acquireWeekDispatchLock,
+  archiveAndClearCurrentWeek,
   listCurrentWeekSubmissions,
   markWeekDispatchComplete,
   releaseWeekDispatchLock,
 } from "@/lib/submissions";
 import { runWithTelemetry } from "@/lib/telemetry";
+import type { DispatchContent } from "@/lib/types";
 
 class DispatchGenerationError extends Error {
   submissionCount: number;
@@ -17,6 +20,26 @@ class DispatchGenerationError extends Error {
   constructor(submissionCount: number) {
     super("Dispatch generation failed");
     this.name = "DispatchGenerationError";
+    this.submissionCount = submissionCount;
+  }
+}
+
+class DispatchDeliveryError extends Error {
+  submissionCount: number;
+
+  constructor(submissionCount: number) {
+    super("Dispatch delivery failed");
+    this.name = "DispatchDeliveryError";
+    this.submissionCount = submissionCount;
+  }
+}
+
+class DispatchCompletionError extends Error {
+  submissionCount: number;
+
+  constructor(submissionCount: number) {
+    super("Dispatch completion failed");
+    this.name = "DispatchCompletionError";
     this.submissionCount = submissionCount;
   }
 }
@@ -46,8 +69,18 @@ function isCronRequestAuthorized(request: Request, cronSecret: string): boolean 
   return Boolean(headerSecret && headerSecret === cronSecret);
 }
 
+function getTriggerMode(request: Request): "manual" | "scheduled" {
+  try {
+    const trigger = new URL(request.url).searchParams.get("trigger");
+    return trigger === "manual" ? "manual" : "scheduled";
+  } catch {
+    return "scheduled";
+  }
+}
+
 export async function GET(request: Request) {
   const weekId = getWeekId();
+  const trigger = getTriggerMode(request);
   try {
     return await runWithTelemetry(
       "cron.generate",
@@ -58,6 +91,7 @@ export async function GET(request: Request) {
           return NextResponse.json(
             {
               status: "unauthorized",
+              trigger,
               weekId,
               submissionCount: 0,
             },
@@ -73,6 +107,7 @@ export async function GET(request: Request) {
         if (submissionCount === 0) {
           return NextResponse.json({
             status: "no_submissions",
+            trigger,
             weekId,
             submissionCount: 0,
           });
@@ -84,6 +119,7 @@ export async function GET(request: Request) {
           return NextResponse.json(
             {
               status: "already_processed",
+              trigger,
               weekId,
               submissionCount,
             },
@@ -93,27 +129,49 @@ export async function GET(request: Request) {
           );
         }
 
+        let dispatch: DispatchContent;
+
         try {
-          const dispatch = await generateDispatchContent({
+          dispatch = await generateDispatchContent({
             weekId,
             submissions,
           });
+        } catch {
+          await releaseWeekDispatchLock(weekId);
+          throw new DispatchGenerationError(submissionCount);
+        }
 
-          await markWeekDispatchComplete(weekId);
+        try {
+          const delivery = await sendWeeklyDispatch({
+            dispatch,
+          });
+          const archive = await archiveAndClearCurrentWeek();
+
+          try {
+            await markWeekDispatchComplete(weekId);
+          } catch {
+            await releaseWeekDispatchLock(weekId);
+            throw new DispatchCompletionError(submissionCount);
+          }
 
           return NextResponse.json({
-            status: "ready_for_delivery",
+            status: "sent",
+            trigger,
             weekId,
             submissionCount,
             dispatch,
             delivery: {
               channel: "email",
-              ready: true,
+              ...delivery,
             },
+            archive,
           });
-        } catch {
+        } catch (error) {
+          if (error instanceof DispatchCompletionError) {
+            throw error;
+          }
           await releaseWeekDispatchLock(weekId);
-          throw new DispatchGenerationError(submissionCount);
+          throw new DispatchDeliveryError(submissionCount);
         }
       },
       {
@@ -121,10 +179,39 @@ export async function GET(request: Request) {
       },
     );
   } catch (error) {
+    if (error instanceof DispatchCompletionError) {
+      return NextResponse.json(
+        {
+          status: "completion_failed",
+          trigger,
+          weekId,
+          submissionCount: error.submissionCount,
+        },
+        {
+          status: 502,
+        },
+      );
+    }
+
+    if (error instanceof DispatchDeliveryError) {
+      return NextResponse.json(
+        {
+          status: "delivery_failed",
+          trigger,
+          weekId,
+          submissionCount: error.submissionCount,
+        },
+        {
+          status: 502,
+        },
+      );
+    }
+
     if (error instanceof DispatchGenerationError) {
       return NextResponse.json(
         {
           status: "generation_failed",
+          trigger,
           weekId,
           submissionCount: error.submissionCount,
         },

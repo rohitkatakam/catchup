@@ -21,5 +21,5 @@ export interface DispatchResult {
   weekId: WeekId;
   archivedCount: number;
   sent: boolean;
-  messageId?: string;
+  broadcastId?: string;
 }
