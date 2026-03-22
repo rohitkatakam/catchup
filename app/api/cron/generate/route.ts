@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getTriggerMode, isCronRequestAuthorized } from "@/lib/cron-auth";
 import { generateDispatchContent } from "@/lib/dispatch";
 import { sendWeeklyDispatch } from "@/lib/email";
 import { getEnv } from "@/lib/env";
@@ -41,40 +42,6 @@ class DispatchCompletionError extends Error {
     super("Dispatch completion failed");
     this.name = "DispatchCompletionError";
     this.submissionCount = submissionCount;
-  }
-}
-
-function getBearerToken(authorizationHeader: string | null): string | null {
-  if (!authorizationHeader) {
-    return null;
-  }
-
-  const [scheme, token] = authorizationHeader.trim().split(/\s+/, 2);
-
-  if (scheme?.toLowerCase() !== "bearer" || !token) {
-    return null;
-  }
-
-  return token;
-}
-
-function isCronRequestAuthorized(request: Request, cronSecret: string): boolean {
-  const authorizationToken = getBearerToken(request.headers.get("authorization"));
-
-  if (authorizationToken && authorizationToken === cronSecret) {
-    return true;
-  }
-
-  const headerSecret = request.headers.get("x-cron-secret");
-  return Boolean(headerSecret && headerSecret === cronSecret);
-}
-
-function getTriggerMode(request: Request): "manual" | "scheduled" {
-  try {
-    const trigger = new URL(request.url).searchParams.get("trigger");
-    return trigger === "manual" ? "manual" : "scheduled";
-  } catch {
-    return "scheduled";
   }
 }
 

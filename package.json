@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "mvp:triggers": "bash scripts/mvp-triggers.sh",
     "test:watch": "vitest",
     "test:ui": "vitest --ui"
   },

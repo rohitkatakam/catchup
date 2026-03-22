@@ -28,7 +28,7 @@ vi.mock("resend", () => ({
   Resend: ResendMock,
 }));
 
-import { sendWeeklyDispatch } from "@/lib/email";
+import { sendCallForSubmissions, sendWeeklyDispatch } from "@/lib/email";
 
 const dispatch: DispatchContent = {
   subject: "Weekend Dispatch - 2026-03-16",
@@ -46,6 +46,7 @@ describe("sendWeeklyDispatch", () => {
       RESEND_API_KEY: "re_test_key",
       DISPATCH_FROM_EMAIL: "dispatch@example.com",
       DISPATCH_AUDIENCE_ID: "audience_123",
+      DISPATCH_APP_URL: "https://dispatch.example.com",
     });
 
     sendEmailMock.mockResolvedValue({
@@ -115,5 +116,59 @@ describe("sendWeeklyDispatch", () => {
         message: expect.stringContaining("missing broadcast id"),
       }),
     );
+  });
+});
+
+describe("sendCallForSubmissions", () => {
+  beforeEach(() => {
+    getEnvMock.mockReset();
+    sendEmailMock.mockReset();
+    ResendMock.mockClear();
+
+    getEnvMock.mockReturnValue({
+      RESEND_API_KEY: "re_test_key",
+      DISPATCH_FROM_EMAIL: "dispatch@example.com",
+      DISPATCH_AUDIENCE_ID: "audience_123",
+      DISPATCH_APP_URL: "https://dispatch.example.com",
+    });
+
+    sendEmailMock.mockResolvedValue({
+      data: {
+        id: "broadcast_prompt_1",
+      },
+      error: null,
+    });
+  });
+
+  it("sends prompt broadcast with submission URL in html and text", async () => {
+    const result = await sendCallForSubmissions({
+      submissionUrl: "https://dispatch.example.com/submit",
+    });
+
+    expect(sendEmailMock).toHaveBeenCalledWith({
+      from: "dispatch@example.com",
+      subject: "Weekend Dispatch — your update",
+      html: expect.stringContaining("https://dispatch.example.com/submit"),
+      text: expect.stringContaining("https://dispatch.example.com/submit"),
+      audienceId: "audience_123",
+      send: true,
+    });
+
+    expect(result).toEqual({
+      provider: "resend",
+      audienceId: "audience_123",
+      broadcastId: "broadcast_prompt_1",
+    });
+  });
+
+  it("throws when Resend returns an error", async () => {
+    sendEmailMock.mockResolvedValue({
+      data: null,
+      error: { message: "rate limited" },
+    });
+
+    await expect(
+      sendCallForSubmissions({ submissionUrl: "https://dispatch.example.com" }),
+    ).rejects.toThrow(/call-for-submissions broadcast/);
   });
 });
